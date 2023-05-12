@@ -20,7 +20,6 @@ package p2p
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -780,7 +779,8 @@ running:
 			// A peer disconnected.
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			delete(peers, pd.ID())
-			srv.log.Debug("Removing p2p peer", "peercount", len(peers), "id", pd.ID(), "duration", d, "req", pd.requested, "err", pd.err)
+			//srv.log.Debug("Removing p2p peer", "peercount", len(peers), "id", pd.ID(), "duration", d, "req", pd.requested, "err", pd.err)
+			srv.log.Info("Removing p2p peer", "peercount", len(peers), "id", pd.ID(), "duration", d, "req", pd.requested, "err", pd.err, "enode", pd.Node().String(), "name", pd.Fullname())
 			srv.dialsched.peerRemoved(pd.rw)
 			if pd.Inbound() {
 				inboundCount--
@@ -958,7 +958,8 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		dialPubkey := new(ecdsa.PublicKey)
 		if err := dialDest.Load((*enode.Secp256k1)(dialPubkey)); err != nil {
 			err = errors.New("dial destination doesn't have a secp256k1 public key")
-			srv.log.Trace("Setting up connection failed", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
+			//srv.log.Trace("Setting up connection failed", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
+			srv.log.Info("Connect p2p peer failed", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err, "step", "0")
 			return err
 		}
 	}
@@ -966,7 +967,8 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	// Run the RLPx handshake.
 	remotePubkey, err := c.doEncHandshake(srv.PrivateKey)
 	if err != nil {
-		srv.log.Trace("Failed RLPx handshake", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
+		//srv.log.Trace("Failed RLPx handshake", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
+		srv.log.Info("Connect p2p peer failed", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err, "step", "1")
 		return err
 	}
 	if dialDest != nil {
@@ -974,27 +976,32 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	} else {
 		c.node = nodeFromConn(remotePubkey, c.fd)
 	}
-	clog := srv.log.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
+	srv.log.Info("Discovery p2p peer", "enode", c.node.String())
+	//clog := srv.log.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	err = srv.checkpoint(c, srv.checkpointPostHandshake)
 	if err != nil {
-		clog.Trace("Rejected peer", "err", err)
+		//clog.Trace("Rejected peer", "err", err)
+		srv.log.Info("Connect p2p peer failed", "enode", c.node.String(), "err", err, "step", "2")
 		return err
 	}
 
 	// Run the capability negotiation handshake.
 	phs, err := c.doProtoHandshake(srv.ourHandshake)
 	if err != nil {
-		clog.Trace("Failed p2p handshake", "err", err)
+		//clog.Trace("Failed p2p handshake", "err", err)
+		srv.log.Info("Connect p2p peer failed", "enode", c.node.String(), "err", err, "step", "3")
 		return err
 	}
 	if id := c.node.ID(); !bytes.Equal(crypto.Keccak256(phs.ID), id[:]) {
-		clog.Trace("Wrong devp2p handshake identity", "phsid", hex.EncodeToString(phs.ID))
+		//clog.Trace("Wrong devp2p handshake identity", "phsid", hex.EncodeToString(phs.ID))
+		srv.log.Info("Connect p2p peer failed", "enode", c.node.String(), "err", "Wrong devp2p handshake identity", "step", "4")
 		return DiscUnexpectedIdentity
 	}
 	c.caps, c.name = phs.Caps, phs.Name
 	err = srv.checkpoint(c, srv.checkpointAddPeer)
 	if err != nil {
-		clog.Trace("Rejected peer", "err", err)
+		//clog.Trace("Rejected peer", "err", err)
+		srv.log.Info("Connect p2p peer failed", "enode", c.node.String(), "err", err, "step", "5")
 		return err
 	}
 
