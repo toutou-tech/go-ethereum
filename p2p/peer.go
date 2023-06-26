@@ -282,12 +282,12 @@ loop:
 			break loop
 		case err = <-p.protoErr:
 			reason = discReasonForError(err)
-			p.log.Info("----readErr ", err, reason)
+			p.log.Info("----protoErr ", err, reason)
 
 			break loop
 		case err = <-p.disc:
 			reason = discReasonForError(err)
-			p.log.Info("----readErr ", err, reason)
+			p.log.Info("----disc ", err, reason)
 			break loop
 		}
 	}
