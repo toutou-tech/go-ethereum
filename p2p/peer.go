@@ -266,10 +266,10 @@ loop:
 			// there was no error.
 			if err != nil {
 				reason = DiscNetworkError
-				p.log.Info("----writeErr %v %v", err, reason)
+				p.log.Info("----writeErr ", err, reason)
 				break loop
 			}
-			p.log.Info("----writeErr %v", err)
+			p.log.Info("----writeErr ", err)
 			writeStart <- struct{}{}
 		case err = <-readErr:
 			if r, ok := err.(DiscReason); ok {
@@ -278,16 +278,16 @@ loop:
 			} else {
 				reason = DiscNetworkError
 			}
-			p.log.Info("----readErr %v %v", err, reason)
+			p.log.Info("----readErr ", err, reason)
 			break loop
 		case err = <-p.protoErr:
 			reason = discReasonForError(err)
-			p.log.Info("----readErr %v %v", err, reason)
+			p.log.Info("----readErr ", err, reason)
 
 			break loop
 		case err = <-p.disc:
 			reason = discReasonForError(err)
-			p.log.Info("----readErr %v %v", err, reason)
+			p.log.Info("----readErr ", err, reason)
 			break loop
 		}
 	}
